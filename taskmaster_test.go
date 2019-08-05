@@ -7,22 +7,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestKubernetesCronJobToCronJob(t *testing.T) {
-
+	deadLineSeconds := int64(600)
 	expectedCronJob := CronJob{
-		Name:              "test_123",
-		Namespace:         "testnamespace_1234",
-		Taskname:          "testtaskname_4444",
-		Image:             "testimage_1231",
-		Schedule:          "5 4 * * *",
-		Args:              []string{"testargs1", "testargs2"},
-		Env:               map[string]string{"ENV": "UAT", "TESTVAR": "TESTVAL"},
-		ConcurrencyPolicy: CronConcurrencyPolicyForbid,
-		RestartPolicy:     CronRestartPolicyNever,
+		Name:                    "test_123",
+		Namespace:               "testnamespace_1234",
+		Taskname:                "testtaskname_4444",
+		Image:                   "testimage_1231",
+		Schedule:                "5 4 * * *",
+		Args:                    []string{"testargs1", "testargs2"},
+		Env:                     map[string]string{"ENV": "UAT", "TESTVAR": "TESTVAL"},
+		ConcurrencyPolicy:       CronConcurrencyPolicyForbid,
+		RestartPolicy:           CronRestartPolicyNever,
+		StartingDeadlineSeconds: &deadLineSeconds,
 	}
 
 	meta := metav1.ObjectMeta{

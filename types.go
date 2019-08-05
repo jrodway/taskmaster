@@ -50,16 +50,17 @@ type Options struct {
 
 // CronJob -
 type CronJob struct {
-	Name              string
-	Namespace         string
-	Taskname          string
-	Image             string
-	Schedule          string
-	Args              []string
-	Env               map[string]string
-	RestartPolicy     string
-	ConcurrencyPolicy string
-	Suspend           *bool
+	Name                    string
+	Namespace               string
+	Taskname                string
+	Image                   string
+	Schedule                string
+	Args                    []string
+	Env                     map[string]string
+	RestartPolicy           string
+	ConcurrencyPolicy       string
+	Suspend                 *bool
+	StartingDeadlineSeconds *int64
 }
 
 func k8sCronJobtoCronJob(k8sCronJob v1beta1.CronJob) (cj *CronJob) {
@@ -72,6 +73,7 @@ func k8sCronJobtoCronJob(k8sCronJob v1beta1.CronJob) (cj *CronJob) {
 	cj.ConcurrencyPolicy = string(k8sCronJob.Spec.ConcurrencyPolicy)
 	cj.RestartPolicy = string(k8sCronJob.Spec.JobTemplate.Spec.Template.Spec.RestartPolicy)
 	cj.Schedule = k8sCronJob.Spec.Schedule
+	cj.StartingDeadlineSeconds = k8sCronJob.Spec.StartingDeadlineSeconds
 	cj.Env = map[string]string{}
 	for _, e := range k8sCronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Env {
 		cj.Env[e.Name] = e.Value
@@ -122,6 +124,7 @@ func cronJobToK8sCronJob(cronJob *CronJob) (kcj *v1beta1.CronJob) {
 
 	spec := v1beta1.CronJobSpec{
 		Schedule:                   cronJob.Schedule,
+		StartingDeadlineSeconds:    cronJob.StartingDeadlineSeconds,
 		Suspend:                    cronJob.Suspend,
 		ConcurrencyPolicy:          v1beta1.ConcurrencyPolicy(cronJob.ConcurrencyPolicy),
 		SuccessfulJobsHistoryLimit: pointer.ToInt32(3),
