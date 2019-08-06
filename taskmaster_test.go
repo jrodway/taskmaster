@@ -8,6 +8,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,6 +25,8 @@ func TestKubernetesCronJobToCronJob(t *testing.T) {
 		ConcurrencyPolicy:       CronConcurrencyPolicyForbid,
 		RestartPolicy:           CronRestartPolicyNever,
 		StartingDeadlineSeconds: &deadLineSeconds,
+		MemoryLimit:             "512Mi",
+		MemoryRequest:           "256Mi",
 	}
 
 	meta := metav1.ObjectMeta{
@@ -36,11 +39,25 @@ func TestKubernetesCronJobToCronJob(t *testing.T) {
 		envs = append(envs, v1.EnvVar{Name: n, Value: v})
 	}
 
+	resourceListLimits := make(v1.ResourceList)
+	maxQuantity, _ := resource.ParseQuantity(expectedCronJob.MemoryLimit)
+	resourceListLimits[v1.ResourceMemory] = maxQuantity
+
+	resourceListRequest := make(v1.ResourceList)
+	requestQuantity, _ := resource.ParseQuantity(expectedCronJob.MemoryRequest)
+	resourceListRequest[v1.ResourceMemory] = requestQuantity
+
+	resourceRequirements := v1.ResourceRequirements{
+		Limits:   resourceListLimits,
+		Requests: resourceListRequest,
+	}
+
 	container := v1.Container{
-		Name:  expectedCronJob.Name,
-		Image: expectedCronJob.Image,
-		Env:   envs,
-		Args:  expectedCronJob.Args,
+		Name:      expectedCronJob.Name,
+		Image:     expectedCronJob.Image,
+		Env:       envs,
+		Args:      expectedCronJob.Args,
+		Resources: resourceRequirements,
 	}
 
 	var Conts []v1.Container
@@ -85,6 +102,8 @@ func TestKubernetesCronJobToCronJob(t *testing.T) {
 	testK8sCronJob := cronJobToK8sCronJob(&expectedCronJob)
 
 	assert.Equal(t, testCronJob.Name, testK8sCronJob.ObjectMeta.Name)
+	assert.Equal(t, testCronJob.MemoryLimit, testK8sCronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().String())
+	assert.Equal(t, testCronJob.MemoryRequest, testK8sCronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String())
 	assert.Equal(t, testCronJob.Namespace, testK8sCronJob.ObjectMeta.Namespace)
 	assert.Equal(t, testCronJob.Schedule, testK8sCronJob.Spec.Schedule)
 	assert.Equal(t, testCronJob.ConcurrencyPolicy, string(testK8sCronJob.Spec.ConcurrencyPolicy))

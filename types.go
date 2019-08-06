@@ -5,6 +5,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -61,6 +62,8 @@ type CronJob struct {
 	ConcurrencyPolicy       string
 	Suspend                 *bool
 	StartingDeadlineSeconds *int64
+	MemoryLimit             string
+	MemoryRequest           string
 }
 
 func k8sCronJobtoCronJob(k8sCronJob v1beta1.CronJob) (cj *CronJob) {
@@ -75,6 +78,8 @@ func k8sCronJobtoCronJob(k8sCronJob v1beta1.CronJob) (cj *CronJob) {
 	cj.Schedule = k8sCronJob.Spec.Schedule
 	cj.StartingDeadlineSeconds = k8sCronJob.Spec.StartingDeadlineSeconds
 	cj.Env = map[string]string{}
+	cj.MemoryLimit = k8sCronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().String()
+	cj.MemoryRequest = k8sCronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String()
 	for _, e := range k8sCronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Env {
 		cj.Env[e.Name] = e.Value
 	}
@@ -103,12 +108,24 @@ func cronJobToK8sCronJob(cronJob *CronJob) (kcj *v1beta1.CronJob) {
 	for n, v := range cronJob.Env {
 		envs = append(envs, v1.EnvVar{Name: n, Value: v})
 	}
+	resourceListLimits := make(v1.ResourceList)
+	maxQuantity, _ := resource.ParseQuantity(cronJob.MemoryLimit)
+	resourceListLimits[v1.ResourceMemory] = maxQuantity
 
+	resourceListRequest := make(v1.ResourceList)
+	requestQuantity, _ := resource.ParseQuantity(cronJob.MemoryRequest)
+	resourceListRequest[v1.ResourceMemory] = requestQuantity
+
+	resourceRequirements := v1.ResourceRequirements{
+		Limits:   resourceListLimits,
+		Requests: resourceListRequest,
+	}
 	container := v1.Container{
-		Name:  cronJob.Name,
-		Image: cronJob.Image,
-		Env:   envs,
-		Args:  cronJob.Args,
+		Name:      cronJob.Name,
+		Image:     cronJob.Image,
+		Env:       envs,
+		Args:      cronJob.Args,
+		Resources: resourceRequirements,
 	}
 
 	var Conts []v1.Container
